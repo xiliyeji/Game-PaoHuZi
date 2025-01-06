@@ -210,54 +210,65 @@ def deal(hands: list, card: Card):
 
     return [hands_new, cards_deal]
 
+def getChance(hands: list[Card]):
+    hands_cp, chance = hands, set()
+    for card in hands_cp:
+        hands_cp.remove(card)
+        for try_list in [[Card.二, Card.七, Card.十], [Card.贰, Card.柒, Card.拾]]:
+            if card in try_list:
+                try_list.remove(card)
+                card1, card2 = try_list[0], try_list[1]
+                if card1 in hands_cp:
+                    chance.add(card2)
+                if card2 in hands_cp:
+                    chance.add(card1)
+        if card in hands_cp:
+            chance.update([card, card.get(10)])
+        if card.get(10) in hands_cp:
+            chance.update([card.get(10), card])
+        if card.get(1) in hands_cp:
+            chance.update([card.get(2), card.get(-1)])
+        if card.get(-1) in hands_cp:
+            chance.update([card.get(-2), card.get(1)])
+        if card.get(2) in hands_cp:
+            chance.add(card.get(1))
+        if card.get(-2) in hands_cp:
+            chance.add(card.get(-1))
+    return len(chance)
 
-def analyze(hands: list, dealCards: list = [], state: list = [[0, 0], 0]):
-    hands_cp, dealCards_cp = hands.copy(), dealCards.copy()
-    result_dict = {'hands_deal': [], 'cards_deal': [], 'state': [[0, 0], 0]}
-    for card in set(hands_cp):
+def analyze(hands: list[Card]):
+    result = {'point': 0, 'chance': 0}
+    result_cp = result.copy()
+    for card in set(hands):
+        hands_cp = hands.copy()
         hands_cp.remove(card)
         deal_list = deal(hands_cp, card)
         hands_deal_list, cards_deal_list = deal_list[0], deal_list[1]
         if len(cards_deal_list) == 0:
-            if state[1] > 0:
-                state[0][0] = state[1]
-                return {'hands_deal': hands, 'cards_deal': dealCards, 'state': state}
-            else:
-                continue
+            continue
+        else:
+            for hands_deal, cards_deal in zip(hands_deal_list, cards_deal_list):
+                result_alz = analyze(hands_deal)
+                result_alz['point'] += 1
+                if result_alz['point'] > result['point'] or (result_alz['point'] == result['point'] and result_alz['point'] > result['chance']):
+                    result = result_alz
+    if result == result_cp:
+        result['chance'] = getChance(hands)
+    return result
 
-        for hands_deal, cards_deal in zip(hands_deal_list, cards_deal_list):
-            state_cp = state.copy()
-            state_cp[1] += 1 
-            dealCards_cp += cards_deal           
-            analyze_dict = analyze(hands_deal, dealCards_cp, state_cp)
-            if analyze_dict['state'][1] > 1:
-                analyze_dict['state'][1] -= 1
-                return analyze_dict
-
-            if analyze_dict['state'][0][0] > result_dict['state'][0][0]:
-                result_dict = analyze_dict.copy()
-            elif analyze_dict['state'][0][0] == result_dict['state'][0][0]:
-                result_dict['hands_deal'].append(analyze_dict['hands_deal'])
-                result_dict['cards_deal'].append(analyze_dict['cards_deal'])
-        pass
-    return result_dict
-                
-
-                
-            
-
-def main():
+def main():                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
     cards = newCards()
     hands = Card.sort(getHands(cards))
-    # hands = [Card.一, Card.一, Card.一, Card.十, Card.十, Card.十,Card.四 ,Card.四,Card.四 ,Card.八, Card.八, Card.八,Card.陆, Card.七]
+    print(Card.getName(hands), '  ', len(hands))
+    print(analyze(hands))
 
-    analyze_dict = analyze(hands)
-    cards_deal, hands_deal = analyze_dict['cards_deal'], analyze_dict['hands_deal']
-
-    print('-------------------')
-    print(f'cards_deal:{cards_deal}')
-    print(f'hands_deal:{hands_deal}')
-    print(len(cards_deal), len(hands_deal))
+def test():
+    hands = [Card.一, Card.二, Card.四, Card.四, Card.五, Card.六, Card.七, Card.九, Card.壹, Card.贰, Card.叁, Card.陆, Card.柒, Card.拾]
+    print(Card.getName(hands), '  ', len(hands))
+    print(analyze(hands))
 
 if __name__ == '__main__':
-    main()
+    if 0:
+        main()
+    else:
+        test()
