@@ -207,12 +207,12 @@ def deal(hands: list, card: Card):
                 _hands.remove(c)
             hands_new.append(_hands)
             cards_deal.append(_cards)
-
     return [hands_new, cards_deal]
 
 def getChance(hands: list[Card]):
-    hands_cp, chance = hands, set()
-    for card in hands_cp:
+    chance = set()
+    for card in set(hands):
+        hands_cp = hands.copy()
         hands_cp.remove(card)
         for try_list in [[Card.二, Card.七, Card.十], [Card.贰, Card.柒, Card.拾]]:
             if card in try_list:
@@ -234,41 +234,46 @@ def getChance(hands: list[Card]):
             chance.add(card.get(1))
         if card.get(-2) in hands_cp:
             chance.add(card.get(-1))
+    if None in chance:
+        chance.remove(None)
     return len(chance)
 
 def analyze(hands: list[Card]):
     result = {'point': 0, 'chance': 0}
     result_cp = result.copy()
     for card in set(hands):
+        flag_cantDeal = False
         hands_cp = hands.copy()
         hands_cp.remove(card)
         deal_list = deal(hands_cp, card)
         hands_deal_list, cards_deal_list = deal_list[0], deal_list[1]
         if len(cards_deal_list) == 0:
-            continue
+            flag_cantDeal = True
         else:
             for hands_deal, cards_deal in zip(hands_deal_list, cards_deal_list):
                 result_alz = analyze(hands_deal)
                 result_alz['point'] += 1
-                if result_alz['point'] > result['point'] or (result_alz['point'] == result['point'] and result_alz['point'] > result['chance']):
+                if result_alz['point'] > result['point'] or (result_alz['point'] == result['point'] and result_alz['chance'] > result['chance']):
                     result = result_alz
-    if result == result_cp:
-        result['chance'] = getChance(hands)
+        if flag_cantDeal and result_cp['point'] >= result['point']:
+            result_print = result.copy()
+            result['chance'] = getChance(hands)
     return result
 
-def main():                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
+def main():
     cards = newCards()
     hands = Card.sort(getHands(cards))
     print(Card.getName(hands), '  ', len(hands))
     print(analyze(hands))
 
 def test():
-    hands = [Card.一, Card.二, Card.四, Card.四, Card.五, Card.六, Card.七, Card.九, Card.壹, Card.贰, Card.叁, Card.陆, Card.柒, Card.拾]
+    hands = [Card.二, Card.三, Card.四, Card.七, Card.七, Card.八, Card.九, Card.十, Card.壹, Card.贰, Card.肆]
     print(Card.getName(hands), '  ', len(hands))
     print(analyze(hands))
 
 if __name__ == '__main__':
-    if 0:
-        main()
-    else:
+    doTest = 0
+    if doTest:
         test()
+    else:
+        main()
