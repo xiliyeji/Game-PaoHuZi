@@ -42,13 +42,16 @@ class Card(Enum):
         except ValueError:
             return None
 
-    def getName(cardList):
+    def getName(cards): 
         """获取列表“list[Card]”的名字列表“list[Card.name]。"""
-        nameList = []
-        for card in cardList:
-            nameList.append(card.name)
-        return nameList
-
+        if isinstance(cards, list):
+            nameList = []
+            for card in cards:
+                nameList.append(card.name)
+            return nameList
+        elif isinstance(cards, Card):
+            return cards.name
+            
     def sort(cardList: list['Card']) -> list['Card']:
         """
         将列表“list[Card]”按值进行增序排序。
@@ -159,7 +162,7 @@ def try_deal(hands: list, card: Card, dealType: DealType, list: list = []):
         return False
 
 
-def deal(hands: list, card: Card):
+def deal(hands: list, card: Card) -> list[list[list[Card]]]:
     '''
     用于分析hands所有需要card的组合与结果；返回一个list, 其中: list[0]=hands_new, list[1]=cards_deal。
     hands: 手牌; card: 响应牌; hands_new: 要牌后的手牌; cards_deal: 要牌组合
@@ -210,6 +213,9 @@ def deal(hands: list, card: Card):
     return [hands_new, cards_deal]
 
 def getChance(hands: list[Card]):
+    '''
+    获取hands的进张数量。
+    '''
     chance = set()
     for card in set(hands):
         hands_cp = hands.copy()
@@ -240,6 +246,8 @@ def getChance(hands: list[Card]):
 
 def analyze(hands: list[Card]):
     result = {'point': 0, 'chance': 0}
+    if hands == []:
+        return result
     result_cp = result.copy()
     for card in set(hands):
         flag_cantDeal = False
@@ -256,20 +264,97 @@ def analyze(hands: list[Card]):
                 if result_alz['point'] > result['point'] or (result_alz['point'] == result['point'] and result_alz['chance'] > result['chance']):
                     result = result_alz
         if flag_cantDeal and result_cp['point'] >= result['point']:
-            result_print = result.copy()
             result['chance'] = getChance(hands)
     return result
+
+def check_win(hands: list[Card], card: Card = None) -> bool:
+    '''
+    判断是否胡牌。
+    '''
+    if card != None:
+        hands = hands.copy()
+        hands.append(card)
+    state = analyze(hands)
+    if hands == [] or (state['chance'] == 0 and state['point']*3 == len(hands)):
+        return True
+    return False
+
+def playCard(hands: list[Card]) -> Card:
+    '''
+    根据最优牌效出牌。
+    '''
+    if check_win(hands):
+        return None
+    card_play_best = None
+    state = dict()
+    for card_play in set(hands):
+        if hands.count(card_play) >= 3:
+            continue
+        hands_new = hands.copy()
+        hands_new.remove(card_play)
+        state_new = analyze(hands_new)
+        if card_play_best == None or state_new['point'] > state['point'] or (state_new['point'] == state['point'] and state_new['chance'] > state['chance']):
+            card_play_best = card_play
+            state = state_new.copy()
+    hands.remove(card_play_best)
+    if card_play_best == None:
+        raise Exception('Card.playCard()错误返回！')
+    return card_play_best
+         
+def thinkThenDo(hands: list[Card], card: Card) -> Card:
+    '''
+    对于card，分析hands是否要牌。如果要牌，则根据最优牌效出牌（返回值）。
+    '''
+    if hands == []:
+        return None
+    state = analyze(hands)
+    card_play_best, cards_deal_best = None, []
+    hands_deal_list = deal(hands, card)
+    for hands_deal, cards_deal in zip(hands_deal_list[0], hands_deal_list[1]):
+        card_play = playCard(hands_deal)
+        if card_play == None:
+            return None
+        state_deal = analyze(hands_deal)
+        state_deal['point'] += 1
+        if state_deal['point'] > state['point'] or (state_deal['point'] == state['point'] and state_deal['chance'] > state['chance']):
+            state = state_deal
+            card_play_best, cards_deal_best[:] = card_play, cards_deal
+            hands[:] = hands_deal
+    if card_play_best != None:
+        print(f'摸牌: {card}    要牌:{Card.getName(cards_deal_best)}    出牌: {Card.getName(card_play_best)}')
+        print(f'手牌: {Card.getName(hands)}  {analyze(hands)}  {len(hands)}')
+    return  card_play_best
 
 def main():
     cards = newCards()
     hands = Card.sort(getHands(cards))
-    print(Card.getName(hands), '  ', len(hands))
-    print(analyze(hands))
+    print(Card.getName(hands), analyze(hands), len(hands))
+    
+    while cards != []:
+        card = cards.pop()
+        if check_win(hands, card):
+            return print(f'玩家获胜！')
+        thinkThenDo(hands, card)                        
+    print('流局！')
 
 def test():
-    hands = [Card.二, Card.三, Card.四, Card.七, Card.七, Card.八, Card.九, Card.十, Card.壹, Card.贰, Card.肆]
-    print(Card.getName(hands), '  ', len(hands))
-    print(analyze(hands))
+    cards = newCards()
+    hands = Card.sort(getHands(cards))
+    print(Card.getName(hands), analyze(hands), len(hands))
+    
+    round = 0
+    while True:
+        round += 1
+        # card = cards.pop()
+        for card in Card:
+            if thinkThenDo(hands, card) != None:
+                break
+            else:
+                if check_win(hands, card):
+                    print(f'回合数:{round}')
+                    return print(f'玩家获胜！')
+        if round > 5:
+            return print('流局！')
 
 if __name__ == '__main__':
     doTest = 0
@@ -277,3 +362,4 @@ if __name__ == '__main__':
         test()
     else:
         main()
+    pass
