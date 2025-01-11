@@ -186,7 +186,7 @@ def deal(hands: list, card: Card) -> list[list[list[Card]]]:
                 hands_temp.remove(card_temp)
                 cards_deal_temp.append(card_temp)
             hands_new.append(hands_temp)
-            cards_deal.append(Card.sort(cards_deal_temp))
+            cards_deal.append(cards_deal_temp)
 
     for numList in [[10, 10], [10, 0]]:
         card1, card2 = card.get(numList[0]), card.get(numList[1])
@@ -195,7 +195,7 @@ def deal(hands: list, card: Card) -> list[list[list[Card]]]:
             hands_temp.remove(card1)
             hands_temp.remove(card2)
             hands_new.append(hands_temp)
-            cards_deal.append(Card.sort([card, card1, card2]))
+            cards_deal.append([card, card1, card2])
 
     if card.value <= 10:
         _cards = [Card.二, Card.七, Card.十]
@@ -209,16 +209,25 @@ def deal(hands: list, card: Card) -> list[list[list[Card]]]:
             for c in _cards_cp:
                 _hands.remove(c)
             hands_new.append(_hands)
-            cards_deal.append(_cards)
+            cards_deal_temp = [card] + _cards_cp
+            cards_deal.append(cards_deal_temp)
+
     return [hands_new, cards_deal]
 
 def getChance(hands: list[Card]):
     '''
     获取hands的进张数量。
     '''
-    chance = set()
+    hands_new = hands.copy()
     for card in set(hands):
-        hands_cp = hands.copy()
+        count = hands.count(card)
+        if count >= 3:
+            for _ in range(count):
+                hands_new.remove(card)
+    
+    chance = set()
+    for card in set(hands_new):
+        hands_cp = hands_new.copy()
         hands_cp.remove(card)
         for try_list in [[Card.二, Card.七, Card.十], [Card.贰, Card.柒, Card.拾]]:
             if card in try_list:
@@ -242,27 +251,45 @@ def getChance(hands: list[Card]):
             chance.add(card.get(-1))
     if None in chance:
         chance.remove(None)
+    chance_cp = chance.copy()
+    for card in chance_cp:
+        if hands.count(card) == 4:
+            chance.remove(card)
     return len(chance)
 
 def analyze(hands: list[Card]):
+    '''
+    计算手牌的胡子数量point与进张种类chance。
+    return -> {'point', 'chance'}
+    '''
     result = {'point': 0, 'chance': 0}
+
     if hands == []:
         return result
-    result_cp = result.copy()
+
+    hands_new = hands.copy()
     for card in set(hands):
+        count = hands_new.count(card)
+        if count >= 3:
+            for _ in range(count):
+                hands_new.remove(card)
+            result['point'] += 1
+
+    result_cp = result.copy()
+    for card in set(hands_new):
         flag_cantDeal = False
-        hands_cp = hands.copy()
+        hands_cp = hands_new.copy()
         hands_cp.remove(card)
         deal_list = deal(hands_cp, card)
         hands_deal_list, cards_deal_list = deal_list[0], deal_list[1]
         if len(cards_deal_list) == 0:
             flag_cantDeal = True
         else:
-            for hands_deal, cards_deal in zip(hands_deal_list, cards_deal_list):
+            for hands_deal in hands_deal_list:
                 result_alz = analyze(hands_deal)
                 result_alz['point'] += 1
                 if result_alz['point'] > result['point'] or (result_alz['point'] == result['point'] and result_alz['chance'] > result['chance']):
-                    result = result_alz
+                    result = result_alz            
         if flag_cantDeal and result_cp['point'] >= result['point']:
             result['chance'] = getChance(hands)
     return result
@@ -321,45 +348,80 @@ def thinkThenDo(hands: list[Card], card: Card) -> Card:
             card_play_best, cards_deal_best[:] = card_play, cards_deal
             hands[:] = hands_deal
     if card_play_best != None:
-        print(f'摸牌: {card}    要牌:{Card.getName(cards_deal_best)}    出牌: {Card.getName(card_play_best)}')
-        print(f'手牌: {Card.getName(hands)}  {analyze(hands)}  {len(hands)}')
+        print(f'要牌:{Card.getName(cards_deal_best)}    出牌: {Card.getName(card_play_best)}')
+        print(f'手牌 {len(hands)}: {Card.getName(hands)}  {analyze(hands)}\n')
     return  card_play_best
+
+def ifCan_Win(hands) -> bool:
+    for card in Card:
+        if check_win(hands, card):
+            return True
+        hands_cp = hands.copy()
+        if thinkThenDo(hands_cp, card) == None:
+            continue
+        if ifCan_Win(hands_cp):
+            return True
+    return False
+    
 
 def main():
     cards = newCards()
     hands = Card.sort(getHands(cards))
-    print(Card.getName(hands), analyze(hands), len(hands))
+    print('手牌', len(hands), ':', Card.getName(hands), analyze(hands))
     
     while cards != []:
         card = cards.pop()
+        print(f'当前牌: {Card.getName(card)}, 牌库剩余: {len(cards)}')
+        #input()
         if check_win(hands, card):
-            return print(f'玩家获胜！')
+            hands.append(card)
+            return print(f'玩家获胜！手牌:\n{Card.getName(Card.sort(hands))}')
         thinkThenDo(hands, card)                        
     print('流局！')
 
-def test():
+def test1():       
     cards = newCards()
-    hands = Card.sort(getHands(cards))
-    print(Card.getName(hands), analyze(hands), len(hands))
-    
+    hands_init = Card.sort(getHands(cards))
+    hands = hands_init.copy()
+    print('手牌', len(hands), ':', Card.getName(hands), analyze(hands)) 
     round = 0
-    while True:
+    while round < 10:
         round += 1
-        # card = cards.pop()
         for card in Card:
-            if thinkThenDo(hands, card) != None:
+            if check_win(hands, card):
+                hands.append(card)
+                print(f'玩家获胜！手牌:\n{Card.getName(Card.sort(hands))}')
+                return True
+            card_play = thinkThenDo(hands, card)
+            if card_play != None:
                 break
-            else:
-                if check_win(hands, card):
-                    print(f'回合数:{round}')
-                    return print(f'玩家获胜！')
-        if round > 5:
-            return print('流局！')
+    print('流局！')
+    print(Card.getName(hands_init))
+    return False
+
+def test2():
+    '''
+    寻找初始无法胡牌的手牌。
+    '''
+    count = 0
+    while test1():
+        count += 1
+        print('------------------------------')
+        print(count)
+
+def test3():
+    hands = [Card.三, Card.六, Card.六, Card.七, Card.七, Card.七, Card.八, Card.九, Card.九, Card.壹, Card.陆, Card.柒, Card.柒, Card.捌]
+    print(Card.getName(hands), [len(hands)], analyze(hands), '\n')
+    print(ifCan_Win(hands))
 
 if __name__ == '__main__':
-    doTest = 0
-    if doTest:
-        test()
-    else:
-        main()
-    pass
+    doRun = 0
+    match doRun:
+        case 0:
+            main()
+        case 1:
+            test1()
+        case 2:
+            test2()
+        case 3:
+            test3()
